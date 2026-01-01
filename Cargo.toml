@@ -1,8 +1,11 @@
 [package]
 authors = ["Arvid Norlander"]
+categories = ["command-line-utilities"]
+description = "Sanitize your terminal ouput for use with hard copy terminals"
 edition = "2024"
 license = "GPL-3.0-only"
 name = "dummare"
+repository = "https://github.com/VorpalBlade/dummare"
 rust-version = "1.92.0"
 version = "0.1.0"
 
