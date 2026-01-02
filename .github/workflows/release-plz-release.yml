@@ -16,6 +16,7 @@ jobs:
   release-plz-release:
     name: Release-plz release
     runs-on: ubuntu-latest
+    environment: release
     if: ${{ github.repository_owner == 'VorpalBlade' }}
     permissions:
       contents: write
