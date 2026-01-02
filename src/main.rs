@@ -7,6 +7,8 @@ use std::io::Read as _;
 use std::io::Write as _;
 use std::os::fd::AsFd as _;
 use std::process::ExitCode;
+use terminfo::Capability;
+use terminfo::Database;
 
 mod cli {
     use clap_derive::Parser;
@@ -30,11 +32,28 @@ mod cli {
 
 fn main() -> anyhow::Result<()> {
     let args = cli::Cli::parse();
-    let width = args.cols.unwrap_or_else(|| {
-        terminal_size::terminal_size()
-            .map(|(terminal_size::Width(w), _)| w)
-            .unwrap_or(80)
-    });
+    let terminfo =
+        Database::from_env().context("Failed to load terminfo based on env variables")?;
+    // Attempt to determine terminal width:
+    let width = args
+        .cols
+        .or_else(|| terminal_size::terminal_size().map(|(terminal_size::Width(w), _)| w))
+        .or_else(|| {
+            match terminfo
+                .get::<terminfo::capability::Columns>()
+                .and_then(Capability::into)
+            {
+                Some(terminfo::Value::Number(value)) => value.try_into().ok(),
+                Some(terminfo::Value::True | terminfo::Value::String(_)) => {
+                    unreachable!("Capability::Columns should only return a number")
+                }
+                None => None,
+            }
+        })
+        .unwrap_or(80);
+
+    // Set up PTY, note that we always set height to be 24, as the height doesn't
+    // even make sense on hard copy terminals.
     let (mut pty, pts) = pty_process::blocking::open().context("Failed to open PTY")?;
     pty.resize(pty_process::Size::new(24, width))
         .context("Failed to set size of PTY")?;
@@ -45,7 +64,7 @@ fn main() -> anyhow::Result<()> {
         .spawn(pts)
         .with_context(|| format!("Failed to spawn command: {}", &args.command))?;
 
-    run(&mut child, &mut pty).context("Error during PTY I/O")?;
+    run(&mut child, &mut pty, terminfo).context("Error during PTY I/O")?;
 
     Ok(())
 }
@@ -54,6 +73,7 @@ fn main() -> anyhow::Result<()> {
 fn run(
     child: &mut std::process::Child,
     pty: &mut pty_process::blocking::Pty,
+    terminfo: Database,
 ) -> anyhow::Result<ExitCode> {
     // This enables raw mode on stdin, and restores the previous mode on drop.
     // It is needed to not get a "local" echo of what the user types.
@@ -63,8 +83,7 @@ fn run(
     let stdin_fd = stdin.as_fd();
     let mut stdin = stdin.lock();
     let mut stdout = std::io::stdout().lock();
-    let mut sanitiser =
-        sanitiser::Writer::new(&mut stdout).context("Failed to set up output sanitizer")?;
+    let mut sanitiser = sanitiser::Writer::new(&mut stdout, terminfo);
 
     loop {
         let mut set = nix::sys::select::FdSet::new();

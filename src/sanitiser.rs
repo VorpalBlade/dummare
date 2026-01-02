@@ -1,6 +1,5 @@
 // Adapted from `strip-ansi-escapes` crate, but removed unused parts and
 // expanded on execute().
-use anyhow::Context as _;
 use modular_bitfield::bitfield;
 use modular_bitfield::prelude::B6;
 use std::io::Write;
@@ -22,10 +21,8 @@ impl<W> Writer<W>
 where
     W: Write,
 {
-    pub fn new(inner: W) -> anyhow::Result<Self> {
-        let terminfo =
-            Database::from_env().context("Failed to load terminfo based on env variables")?;
-        Ok(Self {
+    pub fn new(inner: W, terminfo: Database) -> Self {
+        Self {
             handler: Sanitizer {
                 err: None,
                 terminfo,
@@ -33,7 +30,7 @@ where
                 attributes: Attributes::new(),
             },
             parser: Processor::new(),
-        })
+        }
     }
 }
 
