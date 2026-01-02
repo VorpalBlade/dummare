@@ -8,6 +8,22 @@ edited).
 For a possibly more edited message focused on the binary please see the github
 releases.
 
+## [0.1.2] - 2026-01-02
+
+### Features
+
+- Use terminfo to detect if terminal is hard copy
+- Use terminfo width as fallback if ioctl fails
+
+### Documentation
+
+- Add links to crates.io/lib.rs & add keywords
+
+### Other stuff
+
+- Update outdated code comments
+
+
 ## [0.1.1] - 2026-01-02
 
 ### Features
