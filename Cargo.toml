@@ -23,7 +23,8 @@ clap_derive = "4.5.49"
 nix = { version = "0.30.1", features = ["poll", "term"] }
 pty-process = "0.5.3"
 terminal_size = "0.4.3"
-vte = "0.15.0"
+terminfo = "0.9.0"
+vte = { version = "0.15.0", features = ["ansi"] }
 
 [lints.rust]
 elided_lifetimes_in_paths = "warn"

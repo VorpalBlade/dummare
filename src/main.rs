@@ -63,7 +63,8 @@ fn run(
     let stdin_fd = stdin.as_fd();
     let mut stdin = stdin.lock();
     let mut stdout = std::io::stdout().lock();
-    let mut sanitiser = sanitiser::Writer::new(&mut stdout);
+    let mut sanitiser =
+        sanitiser::Writer::new(&mut stdout).context("Failed to set up output sanitizer")?;
 
     loop {
         let mut set = nix::sys::select::FdSet::new();
