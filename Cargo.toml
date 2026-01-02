@@ -20,7 +20,9 @@ clap = { version = "4.5.53", default-features = false, features = [
     "wrap_help",
 ] }
 clap_derive = "4.5.49"
+modular-bitfield = "0.13.1"
 nix = { version = "0.30.1", features = ["poll", "term"] }
+pastey = "0.2.1"
 pty-process = "0.5.3"
 terminal_size = "0.4.3"
 terminfo = "0.9.0"

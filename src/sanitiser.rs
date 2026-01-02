@@ -1,6 +1,8 @@
 // Adapted from `strip-ansi-escapes` crate, but removed unused parts and
 // expanded on execute().
 use anyhow::Context as _;
+use modular_bitfield::bitfield;
+use modular_bitfield::prelude::B6;
 use std::io::Write;
 use terminfo::Database;
 use terminfo::capability;
@@ -28,6 +30,7 @@ where
                 err: None,
                 terminfo,
                 writer: inner,
+                attributes: Attributes::new(),
             },
             parser: Processor::new(),
         })
@@ -58,6 +61,16 @@ where
     err: Option<std::io::Error>,
     terminfo: Database,
     writer: W,
+    attributes: Attributes,
+}
+
+/// Attributes that we can emulate on hard copy terminals.
+#[bitfield]
+struct Attributes {
+    bold: bool,
+    underline: bool,
+    #[allow(dead_code)]
+    reserved: B6,
 }
 
 impl<W> Sanitizer<W>
@@ -92,6 +105,17 @@ macro_rules! expand_cap {
                 .err();
         }
     };
+    ($self:ident, $cap:ty => $tracker:ident $value:ident) => {
+        if let Some(e) = $self.terminfo.get::<$cap>() {
+            $self.err = terminfo::expand!(&mut $self.writer, e.as_ref())
+                .map_err(terminfo_err_mapper)
+                .err();
+        } else {
+            pastey::paste! {
+                $self.attributes.[<set_ $tracker>]($value);
+            }
+        }
+    };
     ($self:ident, $cap:ty, $count:expr) => {
         if let Some(e) = $self.terminfo.get::<$cap>() {
             for _ in 0..$count {
@@ -108,7 +132,15 @@ where
     W: Write,
 {
     fn input(&mut self, c: char) {
+        // Do the underline first, so that the text is still there if the terminal *can*
+        // do erases.
+        if self.attributes.underline() {
+            self.err = write!(self.writer, "_\x08").err();
+        }
         self.err = write!(self.writer, "{c}").err();
+        if self.attributes.bold() {
+            self.err = write!(self.writer, "\x08{c}").err();
+        }
     }
 
     fn goto_col(&mut self, column: usize) {
@@ -208,19 +240,31 @@ where
             }
             vte::ansi::Attr::Reset => {
                 expand_cap!(self, capability::ExitAttributeMode<'_>);
+                self.attributes.set_bold(false);
+                self.attributes.set_underline(false);
+            }
+            vte::ansi::Attr::Bold => {
+                expand_cap!(self, capability::EnterBoldMode<'_> => bold true);
+            }
+            vte::ansi::Attr::CancelBold => {
+                // This code is sometimes "double underline" sometimes "cancel bold",
+                // so in practice it isn't really used. And there is no terminfo code for it.
+                self.attributes.set_bold(false);
+            }
+            vte::ansi::Attr::Underline => {
+                expand_cap!(self, capability::EnterUnderlineMode<'_> => underline true);
+            }
+            vte::ansi::Attr::CancelUnderline => {
+                expand_cap!(self, capability::ExitUnderlineMode<'_>);
+                self.attributes.set_underline(false);
             }
             vte::ansi::Attr::Italic => {
                 expand_cap!(self, capability::EnterItalicsMode<'_>);
             }
-            vte::ansi::Attr::Underline => {
-                expand_cap!(self, capability::EnterUnderlineMode<'_>);
-            }
             vte::ansi::Attr::CancelItalic => {
                 expand_cap!(self, capability::ExitItalicsMode<'_>);
             }
-            vte::ansi::Attr::CancelUnderline => {
-                expand_cap!(self, capability::ExitUnderlineMode<'_>);
-            }
+            // These are not implemented
             vte::ansi::Attr::Foreground(_color) => (),
             vte::ansi::Attr::Background(_color) => (),
             vte::ansi::Attr::UnderlineColor(_color) => (),
@@ -232,9 +276,7 @@ where
             vte::ansi::Attr::BlinkFast => (),
             vte::ansi::Attr::Hidden => (),
             vte::ansi::Attr::Strike => (),
-            vte::ansi::Attr::Bold => (),
             vte::ansi::Attr::Dim => (),
-            vte::ansi::Attr::CancelBold => (),
             vte::ansi::Attr::CancelBoldDim => (),
             vte::ansi::Attr::CancelBlink => (),
             vte::ansi::Attr::CancelHidden => (),
