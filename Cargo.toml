@@ -3,6 +3,7 @@ authors = ["Arvid Norlander"]
 categories = ["command-line-utilities"]
 description = "Sanitize your terminal ouput for use with hard copy terminals"
 edition = "2024"
+keywords = ["escape-codes", "hard-copy", "terminal", "tty"]
 license = "GPL-3.0-only"
 name = "dummare"
 repository = "https://github.com/VorpalBlade/dummare"

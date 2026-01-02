@@ -1,5 +1,7 @@
 # dummare
 
+[ [lib.rs] ] [ [crates.io] ]
+
 Strips escape codes and such nonsense from terminal output to make it suitable for hard copy terminals (i.e. paper based terminals).
 
 This is extremely niche. If you don't know why you would want this, you probably don't.
@@ -42,3 +44,6 @@ Thank you to the authors or those projects.
 
 "dummare" is Swedish for "dumber", and since this adapts your terminal for use with dumb terminals,
 that seemed like a fitting name.
+
+[crates.io]: https://crates.io/crates/dummare
+[lib.rs]: https://lib.rs/crates/dummare
