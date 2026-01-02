@@ -31,6 +31,10 @@ However, if you need to build this for an obscure platform or such:
 Run `dummare --help` to see usage information. Typical usage would be `dummare bash` to run bash
 with output cleaned for a dumb terminal.
 
+Remember to *properly* set your `TERM` in the parent environment. This is used to
+detect what control codes your terminal supports (if any), if your terminal is a
+real hard copy terminal or not, and for the terminal width.
+
 ## Credits
 
 A lot of the code was adapted from examples in the `pty-process` (MIT) crate.

@@ -1,7 +1,7 @@
 // Adapted from `strip-ansi-escapes` crate, but removed unused parts and
 // expanded on execute() and changed to full ANSI handling.
 use modular_bitfield::bitfield;
-use modular_bitfield::prelude::B6;
+use modular_bitfield::prelude::B5;
 use std::io::Write;
 use terminfo::Database;
 use terminfo::capability;
@@ -21,13 +21,13 @@ impl<W> Writer<W>
 where
     W: Write,
 {
-    pub fn new(inner: W, terminfo: Database) -> Self {
+    pub fn new(inner: W, terminfo: Database, hard_copy: bool) -> Self {
         Self {
             handler: Sanitizer {
                 err: None,
                 terminfo,
                 writer: inner,
-                attributes: Attributes::new(),
+                attributes: Attributes::new().with_hard_copy(hard_copy),
             },
             parser: Processor::new(),
         }
@@ -64,10 +64,15 @@ where
 /// Attributes that we can emulate on hard copy terminals.
 #[bitfield]
 struct Attributes {
+    /// Is bold active
     bold: bool,
+    /// Is underline active
     underline: bool,
+    /// Is the parent terminal a hard copy terminal
+    hard_copy: bool,
+    /// Fields must add up to full bytes.
     #[allow(dead_code)]
-    reserved: B6,
+    reserved: B5,
 }
 
 impl<W> Sanitizer<W>
@@ -131,11 +136,11 @@ where
     fn input(&mut self, c: char) {
         // Do the underline first, so that the text is still there if the terminal *can*
         // do erases.
-        if self.attributes.underline() {
+        if self.attributes.underline() && self.attributes.hard_copy() {
             self.err = write!(self.writer, "_\x08").err();
         }
         self.err = write!(self.writer, "{c}").err();
-        if self.attributes.bold() {
+        if self.attributes.bold() && self.attributes.hard_copy() {
             self.err = write!(self.writer, "\x08{c}").err();
         }
     }
@@ -282,7 +287,6 @@ where
     }
 }
 
-// This probably won't work for actual hard copy terminals?
 const BACKSPACE: u8 = 0x08;
 const SUBSTITUTE: u8 = 0x1A;
 

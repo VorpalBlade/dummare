@@ -24,6 +24,10 @@ mod cli {
         /// 80]
         #[arg(short, long)]
         pub cols: Option<u16>,
+        /// Enable hard-copy terminal features [default: auto-detect from
+        /// terminfo]
+        #[arg(short = 'H', long)]
+        pub hard_copy: Option<bool>,
         /// Command to run inside the terminal
         #[arg()]
         pub command: String,
@@ -52,6 +56,15 @@ fn main() -> anyhow::Result<()> {
         })
         .unwrap_or(80);
 
+    // Determine if terminal is a hard-copy terminal:
+    let hard_copy = args.hard_copy.unwrap_or_else(|| {
+        terminfo
+            .get::<terminfo::capability::HardCopy>()
+            .and_then(Capability::into)
+            .map(|value| value == terminfo::Value::True)
+            .unwrap_or(false)
+    });
+
     // Set up PTY, note that we always set height to be 24, as the height doesn't
     // even make sense on hard copy terminals.
     let (mut pty, pts) = pty_process::blocking::open().context("Failed to open PTY")?;
@@ -64,7 +77,7 @@ fn main() -> anyhow::Result<()> {
         .spawn(pts)
         .with_context(|| format!("Failed to spawn command: {}", &args.command))?;
 
-    run(&mut child, &mut pty, terminfo).context("Error during PTY I/O")?;
+    run(&mut child, &mut pty, terminfo, hard_copy).context("Error during PTY I/O")?;
 
     Ok(())
 }
@@ -74,6 +87,7 @@ fn run(
     child: &mut std::process::Child,
     pty: &mut pty_process::blocking::Pty,
     terminfo: Database,
+    hard_copy: bool,
 ) -> anyhow::Result<ExitCode> {
     // This enables raw mode on stdin, and restores the previous mode on drop.
     // It is needed to not get a "local" echo of what the user types.
@@ -83,7 +97,8 @@ fn run(
     let stdin_fd = stdin.as_fd();
     let mut stdin = stdin.lock();
     let mut stdout = std::io::stdout().lock();
-    let mut sanitiser = sanitiser::Writer::new(&mut stdout, terminfo);
+
+    let mut sanitiser = sanitiser::Writer::new(&mut stdout, terminfo, hard_copy);
 
     loop {
         let mut set = nix::sys::select::FdSet::new();
