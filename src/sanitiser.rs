@@ -1,5 +1,5 @@
 // Adapted from `strip-ansi-escapes` crate, but removed unused parts and
-// expanded on execute().
+// expanded on execute() and changed to full ANSI handling.
 use modular_bitfield::bitfield;
 use modular_bitfield::prelude::B6;
 use std::io::Write;
