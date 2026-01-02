@@ -1,6 +1,5 @@
 // Adapted from `strip-ansi-escapes` crate, but removed unused parts and
 // expanded on execute().
-use std::io::LineWriter;
 use std::io::Write;
 use vte::Parser;
 use vte::Perform;
@@ -21,7 +20,7 @@ where
     pub fn new(inner: W) -> Self {
         Self {
             performer: Performer {
-                writer: LineWriter::new(inner),
+                writer: inner,
                 err: None,
             },
             parser: Parser::new(),
@@ -50,7 +49,7 @@ struct Performer<W>
 where
     W: Write,
 {
-    writer: LineWriter<W>,
+    writer: W,
     err: Option<std::io::Error>,
 }
 
